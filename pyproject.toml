@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fightpass-cancellation"
+version = "0.1.0"
+description = "Bulk cancel UFC Fight Pass Google Play subscriptions and report results."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "google-api-python-client==2.187.0",
+    "google-auth==2.43.0",
+    "tqdm==4.66.1",
+]
+
+[project.scripts]
+fightpass-cancel = "cancel_subscriptions:main"
+fightpass-report = "report_cancellation_log:main"
+
+[tool.setuptools]
+py-modules = ["cancel_subscriptions", "report_cancellation_log"]
