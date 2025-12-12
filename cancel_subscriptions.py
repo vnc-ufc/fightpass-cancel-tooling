@@ -36,6 +36,22 @@ from tqdm import tqdm  # Progress bars
 
 SCOPES = ["https://www.googleapis.com/auth/androidpublisher"]
 RETRY_STATUS = {429, 500, 503}
+DEFAULTS: Dict[str, Any] = {
+    "config": None,
+    "input": None,
+    "token_column": "purchaseToken",
+    "subscription_id_column": "subscriptionId",
+    "service_account": None,
+    "package_name": None,
+    "log": "cancellation_log.jsonl",
+    "delay": 0.15,
+    "retries": 3,
+    "backoff": 0.25,
+    "jitter": 0.25,
+    "max_rows": None,
+    "dry_run": False,
+    "progress": True,
+}
 
 
 @dataclass
@@ -90,7 +106,6 @@ def cancel_with_retries(
     jitter: float,
 ) -> CancelResult:
     """Call the cancellation endpoint with exponential backoff on transient errors."""
-    name = f"applications/{package_name}/purchases/subscriptions/{token}"
     body = {
         "cancellationContext": {
             "cancellationType": "DEVELOPER_REQUESTED_STOP_PAYMENTS"
@@ -100,7 +115,7 @@ def cancel_with_retries(
     for attempt in range(1, retries + 2):
         try:
             service.purchases().subscriptionsv2().cancel(
-                name=name, body=body
+                packageName=package_name, token=token, body=body
             ).execute()
             return CancelResult(status="success", attempts=attempt, http_status=200)
         except HttpError as err:
@@ -204,6 +219,11 @@ def apply_config(args: argparse.Namespace, cfg: Optional[Dict[str, Any]]) -> arg
         if value is None:
             continue
         if hasattr(args, key):
+            current = getattr(args, key)
+            default = DEFAULTS.get(key, None)
+            # Only override if the current value is still at its default (i.e., not set via CLI).
+            if current != default:
+                continue
             setattr(args, key, value)
     return args
 

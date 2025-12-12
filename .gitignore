@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 *.log
 cancellation_log*.jsonl
+config.json
+tokens.csv
+all_rows.csv
+failures*.csv
+ufc-brazil-*.json
+*service-account*.json
+*service_account*.json
