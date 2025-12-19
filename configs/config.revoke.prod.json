@@ -1,0 +1,14 @@
+{
+  "input": "outputs/eligible_for_revoke.csv",
+  "service_account": "secrets/ufc-brazil-551021a57b28.json",
+  "package_name": "com.ufc.brazil.app",
+  "mode": "revoke-prorated",
+  "dry_run": false,
+  "checkpoint": "checkpoints/revoke_checkpoint.txt",
+  "token_column": "token",
+  "package_column": "package",
+  "product_column": "product",
+  "order_id_column": "order_id",
+  "progress": true,
+  "timestamp_logs": true
+}

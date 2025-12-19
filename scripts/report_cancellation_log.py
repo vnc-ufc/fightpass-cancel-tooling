@@ -8,7 +8,7 @@ import argparse
 import csv
 import json
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from typing import Dict, List, Optional
 
 

@@ -2,16 +2,37 @@
 
 High-level overview
 - Goal: stop recurring billing for all Google Play–billed UFC Fight Pass subscriptions ahead of the January 1, 2026 shutdown.
-- Approach: one-time scripted batch using Google Android Publisher API (`purchases.subscriptionsv2.cancel` with developer-requested stop payments).
-- Safeguards: service account with Manage Orders only, dry-run mode, throttling, retries on transient errors, structured audit logs, and post-run reporting.
+- Approach: scripted batch using Google Android Publisher API to validate tokens (`subscriptionsv2.get`) and optionally revoke with prorated refunds (`subscriptionsv2.revoke`) or cancel renewals (`subscriptionsv2.cancel`).
+- Safeguards: service account with Manage Orders only, dry-run mode, throttling, retries on transient errors, structured audit logs, resume checkpoints, and post-run reporting.
 
-One-time tool to bulk-cancel Google Play–billed Fight Pass subscriptions ahead of the sunset. Uses the Google Android Publisher API `purchases.subscriptionsv2.cancel` with `DEVELOPER_REQUESTED_STOP_PAYMENTS`.
+One-time tool to bulk-cancel or revoke Google Play–billed Fight Pass subscriptions ahead of the sunset.
 
 ## Current state
-- Script: `cancel_subscriptions.py`
+- Script: `scripts/cancel_subscriptions.py`
 - Env: Python venv created at `.venv`
 - Installed deps: `google-api-python-client`, `google-auth` (and transitive deps)
-- Reporting: `report_cancellation_log.py` to summarize JSONL logs; packaged CLI entry points available.
+- Reporting: `scripts/report_cancellation_log.py` to summarize JSONL logs; packaged CLI entry points available.
+
+## Folder layout
+- `configs/`: configuration files (no secrets in git)
+- `inputs/`: source CSVs (ignored)
+- `outputs/`: derived CSVs (ignored)
+- `logs/`: JSONL logs (ignored)
+- `checkpoints/`: resume checkpoints (ignored)
+- `scripts/`: Python entry points
+- `secrets/`: service account keys (ignored)
+
+Quick tree:
+```text
+play_api/
+  configs/
+  inputs/
+  outputs/
+  logs/
+  checkpoints/
+  scripts/
+  secrets/
+```
 
 ## Bootstrapping
 Option A: scripted
@@ -30,29 +51,36 @@ pip install -r requirements.txt
 ## Running the tool
 ```bash
 source .venv/bin/activate
-python cancel_subscriptions.py \
-  --input tokens.csv \
-  --service-account path/to/key.json \
+python scripts/cancel_subscriptions.py \
+  --input inputs/tokens.csv \
+  --service-account secrets/key.json \
   --package-name com.ufc.brazil.app \
-  --log cancellation_log.jsonl \
+  --mode cancel \
   --delay 0.15 \
   --retries 3
 ```
 
 Key flags:
+- `--mode`: `cancel`, `validate`, `revoke-prorated`.
 - `--input`: CSV with `purchaseToken` column (optional `subscriptionId`).
 - `--service-account`: JSON key with Manage Orders permission.
 - `--package-name`: App package name.
-- `--log`: JSONL audit log output (default `cancellation_log.jsonl`).
+- `--log`: JSONL audit log output (default is timestamped by mode).
 - `--delay`: Fixed delay between rows (seconds).
 - `--retries`: Retries on 429/500/503 (exponential backoff + jitter).
 - `--backoff`/`--jitter`: Tune retry backoff.
 - `--max-rows`: Process only first N rows (for tests).
+- `--sample-size`: Randomly process N rows (reservoir sampling).
 - `--dry-run`: Skip API calls; still parses and logs with status `dry_run`.
 - `--token-column`: Column name for purchase tokens (default `purchaseToken`; falls back to `purchase_token`/`token`).
 - `--subscription-id-column`: Optional column name for subscription IDs (default `subscriptionId`; falls back to `subscription_id`/`product`).
+- `--package-column`/`--product-column`/`--order-id-column`: Column names for those fields (defaults: `package`, `product`, `order_id`).
 - `--progress` / `--no-progress`: Show or suppress a progress bar (default on).
 - `--config`: Optional JSON file supplying defaults for any flags.
+- `--timestamp-logs` / `--no-timestamp-logs`: Timestamped log filenames (default on).
+- `--eligible-output`: CSV output path for validation mode (eligible-for-revoke list).
+- `--log-response`: Include full API response payload in validation logs.
+- `--checkpoint`: Track processed tokens so you can resume safely.
 
 Logging & summary:
 - Each row logged to JSONL with timestamp, token, subscriptionId, status, attempts, HTTP status, error type, and message.
@@ -64,13 +92,13 @@ Logging & summary:
 - We can extend README as we add features (e.g., CSV validation, progress reporting, resumable runs).
 
 ## Config file (optional)
-You can supply a JSON config and omit most CLI flags. Example: `config.example.json`.
+You can supply a JSON config and omit most CLI flags. Example: `configs/config.example.json`.
 ```json
 {
-  "input": "tokens.csv",
-  "service_account": "path/to/key.json",
+  "input": "inputs/tokens.csv",
+  "service_account": "secrets/service-account.json",
   "package_name": "com.ufc.brazil.app",
-  "log": "cancellation_log.jsonl",
+  "log": null,
   "delay": 0.15,
   "retries": 3,
   "backoff": 0.25,
@@ -79,7 +107,16 @@ You can supply a JSON config and omit most CLI flags. Example: `config.example.j
   "dry_run": false,
   "progress": true,
   "token_column": "purchaseToken",
-  "subscription_id_column": "subscriptionId"
+  "subscription_id_column": "subscriptionId",
+  "package_column": "package",
+  "product_column": "product",
+  "order_id_column": "order_id",
+  "mode": "cancel",
+  "timestamp_logs": true,
+  "eligible_output": null,
+  "log_response": false,
+  "checkpoint": "checkpoints/run_checkpoint.txt",
+  "sample_size": null
 }
 ```
 CLI flags still override config values; required fields must be present via config or CLI.
@@ -88,14 +125,41 @@ Validation:
 - The script validates that a token column exists before processing (using the configured column plus fallbacks).
 - If your CSV uses `token` (example provided) set `--token-column token` or put `"token_column": "token"` in your config.
 
+## Validate + revoke workflow (prorated refunds)
+Recommended for the “revoke + prorated refund” path:
+1) Validation pass to confirm tokens are valid and build the eligible list.
+```bash
+python scripts/cancel_subscriptions.py \
+  --config configs/config.json \
+  --mode validate \
+  --eligible-output outputs/eligible_for_revoke.csv \
+  --log-response \
+  --checkpoint checkpoints/validate_checkpoint.txt
+```
+2) Revoke + prorated refund using the eligible list:
+```bash
+python scripts/cancel_subscriptions.py \
+  --config configs/config.json \
+  --mode revoke-prorated \
+  --input outputs/eligible_for_revoke.csv \
+  --token-column token \
+  --package-column package \
+  --product-column product \
+  --order-id-column order_id \
+  --checkpoint checkpoints/revoke_checkpoint.txt
+```
+Notes:
+- `revoke-prorated` immediately ends access and issues a prorated refund.
+- Use `--sample-size 10` and `--dry-run` for a small test cohort.
+
 ## Reporting (summaries, CSV exports)
 After a run, summarize the JSONL log and export failures/all rows to CSV:
 ```bash
 source .venv/bin/activate
-python report_cancellation_log.py \
-  --log cancellation_log.jsonl \
-  --failures-csv failures.csv \
-  --all-csv all_rows.csv
+python scripts/report_cancellation_log.py \
+  --log logs/cancellation_log.jsonl \
+  --failures-csv outputs/failures.csv \
+  --all-csv outputs/all_rows.csv
 ```
 Outputs:
 - Console summary of status counts and failure breakdowns by errorType/httpStatus.
@@ -111,5 +175,5 @@ fightpass-cancel --help
 fightpass-report --help
 ```
 Entry points:
-- `fightpass-cancel` → `cancel_subscriptions.py` main.
-- `fightpass-report` → `report_cancellation_log.py` main.
+- `fightpass-cancel` → `scripts/cancel_subscriptions.py` main.
+- `fightpass-report` → `scripts/report_cancellation_log.py` main.
