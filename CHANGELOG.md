@@ -11,5 +11,8 @@
 - Added revoke guard requiring validation output (`subscription_state` column).
 - Added separate success/failed checkpoints and expanded report CSV fields.
 
+## 0.2.2 - 2025-12-19
+- Added CLI test workflow instructions in README.
+
 ## 0.1.0 - 2025-12-08
 - Initial bulk cancellation script with logging and retries.

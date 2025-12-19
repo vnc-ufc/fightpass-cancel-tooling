@@ -158,6 +158,38 @@ Notes:
 - `revoke-prorated` immediately ends access and issues a prorated refund.
 - Use `--sample-size 10` and `--dry-run` for a small test cohort.
 
+## Test workflow (small cohort)
+Run a dry-run validation on a small random sample, then a live revoke on the eligible output.
+
+1) Validation dry-run on 10–20 tokens (sampled):
+```bash
+python scripts/cancel_subscriptions.py \
+  --config configs/config.validate.test.json
+```
+
+2) Revoke dry-run on the eligible output:
+```bash
+python scripts/cancel_subscriptions.py \
+  --config configs/config.revoke.test.json
+```
+
+3) Live revoke on the same small cohort (optional):
+```bash
+python scripts/cancel_subscriptions.py \
+  --config configs/config.revoke.test.json \
+  --dry-run false
+```
+
+Notes:
+- For live tests, consider `--sample-size 5` and manual Play Console verification.
+
+CLI equivalent (if installed via `pip install -e .`):
+```bash
+fightpass-cancel --config configs/config.validate.test.json
+fightpass-cancel --config configs/config.revoke.test.json
+fightpass-cancel --config configs/config.revoke.test.json --dry-run false
+```
+
 ## Reporting (summaries, CSV exports)
 After a run, summarize the JSONL log and export failures/all rows to CSV:
 ```bash
