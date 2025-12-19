@@ -1,7 +1,7 @@
-# UFC Fight Pass Google Play Bulk Cancellation
+Google Play Bulk Cancellation
 
 High-level overview
-- Goal: stop recurring billing for all Google Play–billed UFC Fight Pass subscriptions ahead of the January 1, 2026 shutdown.
+- Goal: stop recurring billing for all Google Play–billed subscriptions ahead of the shutdown.
 - Approach: scripted batch using Google Android Publisher API to validate tokens (`subscriptionsv2.get`) and optionally revoke with prorated refunds (`subscriptionsv2.revoke`) or cancel renewals (`subscriptionsv2.cancel`).
 - Safeguards: service account with Manage Orders only, dry-run mode, throttling, retries on transient errors, structured audit logs, resume checkpoints, and post-run reporting.
 
