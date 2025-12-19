@@ -80,7 +80,9 @@ Key flags:
 - `--timestamp-logs` / `--no-timestamp-logs`: Timestamped log filenames (default on).
 - `--eligible-output`: CSV output path for validation mode (eligible-for-revoke list).
 - `--log-response`: Include full API response payload in validation logs.
-- `--checkpoint`: Track processed tokens so you can resume safely.
+- `--checkpoint`: Track successful tokens so you can resume safely (legacy alias).
+- `--checkpoint-success`: Track successful tokens for resume support.
+- `--checkpoint-failed`: Track failed tokens for review/retry.
 
 Logging & summary:
 - Each row logged to JSONL with timestamp, token, subscriptionId, status, attempts, HTTP status, error type, and message.
@@ -115,7 +117,9 @@ You can supply a JSON config and omit most CLI flags. Example: `configs/config.e
   "timestamp_logs": true,
   "eligible_output": null,
   "log_response": false,
-  "checkpoint": "checkpoints/run_checkpoint.txt",
+  "checkpoint": null,
+  "checkpoint_success": "checkpoints/run_success.txt",
+  "checkpoint_failed": "checkpoints/run_failed.txt",
   "sample_size": null
 }
 ```
@@ -134,7 +138,8 @@ python scripts/cancel_subscriptions.py \
   --mode validate \
   --eligible-output outputs/eligible_for_revoke.csv \
   --log-response \
-  --checkpoint checkpoints/validate_checkpoint.txt
+  --checkpoint-success checkpoints/validate_success.txt \
+  --checkpoint-failed checkpoints/validate_failed.txt
 ```
 2) Revoke + prorated refund using the eligible list:
 ```bash
@@ -146,7 +151,8 @@ python scripts/cancel_subscriptions.py \
   --package-column package \
   --product-column product \
   --order-id-column order_id \
-  --checkpoint checkpoints/revoke_checkpoint.txt
+  --checkpoint-success checkpoints/revoke_success.txt \
+  --checkpoint-failed checkpoints/revoke_failed.txt
 ```
 Notes:
 - `revoke-prorated` immediately ends access and issues a prorated refund.

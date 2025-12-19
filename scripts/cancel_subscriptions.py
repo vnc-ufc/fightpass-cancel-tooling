@@ -66,6 +66,8 @@ DEFAULTS: Dict[str, Any] = {
     "eligible_output": None,
     "log_response": False,
     "checkpoint": None,
+    "checkpoint_success": None,
+    "checkpoint_failed": None,
     "sample_size": None,
 }
 
@@ -470,6 +472,7 @@ def run(args: argparse.Namespace) -> int:
         "subscription_id",
         "product",
     ]
+    validation_required = ["subscription_state"]
     package_candidates = [
         args.package_column,
         "package",
@@ -484,8 +487,11 @@ def run(args: argparse.Namespace) -> int:
         "orderId",
     ]
     try:
+        extra_required = (
+            validation_required if args.mode == "revoke-prorated" else None
+        )
         fieldnames, token_field, subscription_field = validate_headers(
-            args.input, token_candidates, subscription_candidates
+            args.input, token_candidates, subscription_candidates, extra_required
         )
     except ValueError as exc:
         sys.stderr.write(str(exc) + "\n")
@@ -503,10 +509,15 @@ def run(args: argparse.Namespace) -> int:
 
     log_path = build_log_path(args.mode, args.log, args.timestamp_logs)
     ensure_parent_dir(log_path)
-    processed_tokens = load_checkpoint(args.checkpoint)
-    if args.checkpoint:
-        ensure_parent_dir(args.checkpoint)
-    checkpoint_fh = open(args.checkpoint, "a") if args.checkpoint else None
+    success_checkpoint = args.checkpoint_success or args.checkpoint
+    failed_checkpoint = args.checkpoint_failed
+    processed_tokens = load_checkpoint(success_checkpoint)
+    if success_checkpoint:
+        ensure_parent_dir(success_checkpoint)
+    if failed_checkpoint:
+        ensure_parent_dir(failed_checkpoint)
+    checkpoint_success_fh = open(success_checkpoint, "a") if success_checkpoint else None
+    checkpoint_failed_fh = open(failed_checkpoint, "a") if failed_checkpoint else None
 
     if args.sample_size:
         rows = sample_rows(args.input, args.sample_size)
@@ -710,9 +721,16 @@ def run(args: argparse.Namespace) -> int:
                 }
                 log_record(log_fh, record)
 
-            if checkpoint_fh:
-                append_checkpoint(checkpoint_fh, token)
-                processed_tokens.add(token)
+            if not args.dry_run:
+                success = (
+                    (args.mode == "validate" and get_result and get_result.status == "success")
+                    or (args.mode != "validate" and result and result.status == "success")
+                )
+                if success and checkpoint_success_fh:
+                    append_checkpoint(checkpoint_success_fh, token)
+                    processed_tokens.add(token)
+                elif not success and checkpoint_failed_fh:
+                    append_checkpoint(checkpoint_failed_fh, token)
 
             if args.delay > 0:
                 time.sleep(args.delay)
@@ -720,8 +738,10 @@ def run(args: argparse.Namespace) -> int:
 
     if eligible_fh:
         eligible_fh.close()
-    if checkpoint_fh:
-        checkpoint_fh.close()
+    if checkpoint_success_fh:
+        checkpoint_success_fh.close()
+    if checkpoint_failed_fh:
+        checkpoint_failed_fh.close()
 
     progress.close()
     print(f"---- {args.mode} summary ----")
@@ -851,7 +871,15 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--checkpoint",
-        help="File path to track processed tokens for resume support.",
+        help="File path to track processed tokens for resume support (success only).",
+    )
+    parser.add_argument(
+        "--checkpoint-success",
+        help="File path to track successful tokens for resume support.",
+    )
+    parser.add_argument(
+        "--checkpoint-failed",
+        help="File path to track failed tokens for review/retry.",
     )
     parser.add_argument(
         "--progress",

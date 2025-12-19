@@ -19,6 +19,8 @@
   "timestamp_logs": true,
   "eligible_output": null,
   "log_response": false,
-  "checkpoint": "checkpoints/run_checkpoint.txt",
+  "checkpoint": null,
+  "checkpoint_success": "checkpoints/run_success.txt",
+  "checkpoint_failed": "checkpoints/run_failed.txt",
   "sample_size": null
 }

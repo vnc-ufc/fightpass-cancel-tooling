@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fightpass-cancellation"
-version = "0.2.0"
+version = "0.2.1"
 description = "Bulk cancel UFC Fight Pass Google Play subscriptions and report results."
 readme = "README.md"
 requires-python = ">=3.8"
