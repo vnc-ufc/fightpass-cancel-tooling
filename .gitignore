@@ -8,6 +8,7 @@ outputs/
 checkpoints/
 inputs/
 secrets/
+*.egg-info/
 configs/config.json
 configs/config.json
 configs/*.local.json

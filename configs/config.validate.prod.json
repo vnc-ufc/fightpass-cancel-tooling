@@ -7,6 +7,7 @@
   "checkpoint_success": "checkpoints/validate_success.txt",
   "checkpoint_failed": "checkpoints/validate_failed.txt",
   "eligible_output": "outputs/eligible_for_revoke.csv",
+  "ineligible_output": "outputs/ineligible_for_revoke.csv",
   "log_response": true,
   "token_column": "token",
   "package_column": "package",

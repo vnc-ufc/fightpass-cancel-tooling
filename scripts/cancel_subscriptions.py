@@ -64,6 +64,7 @@ DEFAULTS: Dict[str, Any] = {
     "timestamp_logs": True,
     "mode": "cancel",
     "eligible_output": None,
+    "ineligible_output": None,
     "log_response": False,
     "checkpoint": None,
     "checkpoint_success": None,
@@ -534,6 +535,8 @@ def run(args: argparse.Namespace) -> int:
 
     eligible_fh = None
     eligible_writer = None
+    ineligible_fh = None
+    ineligible_writer = None
     if args.mode == "validate":
         eligible_path = args.eligible_output
         if not eligible_path:
@@ -557,6 +560,33 @@ def run(args: argparse.Namespace) -> int:
             ],
         )
         eligible_writer.writeheader()
+
+        ineligible_path = args.ineligible_output
+        if not ineligible_path:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            ineligible_path = os.path.join(
+                "outputs", f"ineligible_for_revoke_{stamp}.csv"
+            )
+        ensure_parent_dir(ineligible_path)
+        ineligible_fh = open(ineligible_path, "w", newline="")
+        ineligible_writer = csv.DictWriter(
+            ineligible_fh,
+            fieldnames=[
+                "token",
+                "package",
+                "product",
+                "order_id",
+                "subscription_state",
+                "expiry_time",
+                "auto_renew_enabled",
+                "latest_order_id",
+                "status",
+                "http_status",
+                "error_type",
+                "message",
+            ],
+        )
+        ineligible_writer.writeheader()
 
     with open(log_path, "w") as log_fh:
         for idx, row in enumerate(rows, start=1):
@@ -667,6 +697,23 @@ def run(args: argparse.Namespace) -> int:
                             "latest_order_id": latest_order_id,
                         }
                     )
+                elif ineligible_writer:
+                    ineligible_writer.writerow(
+                        {
+                            "token": token,
+                            "package": package_name,
+                            "product": product,
+                            "order_id": order_id,
+                            "subscription_state": subscription_state,
+                            "expiry_time": expiry_time,
+                            "auto_renew_enabled": auto_renew_enabled,
+                            "latest_order_id": latest_order_id,
+                            "status": get_result.status,
+                            "http_status": get_result.http_status,
+                            "error_type": get_result.error_type,
+                            "message": get_result.message,
+                        }
+                    )
 
                 record = {
                     "timestamp": now_iso(),
@@ -738,6 +785,8 @@ def run(args: argparse.Namespace) -> int:
 
     if eligible_fh:
         eligible_fh.close()
+    if ineligible_fh:
+        ineligible_fh.close()
     if checkpoint_success_fh:
         checkpoint_success_fh.close()
     if checkpoint_failed_fh:
@@ -824,6 +873,10 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--eligible-output",
         help="Path to CSV output for eligible-for-revoke list (validate mode).",
+    )
+    parser.add_argument(
+        "--ineligible-output",
+        help="Path to CSV output for ineligible rows (validate mode).",
     )
     parser.add_argument(
         "--delay",

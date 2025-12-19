@@ -3,7 +3,7 @@
   "service_account": "secrets/ufc-brazil-551021a57b28.json",
   "package_name": "com.ufc.brazil.app",
   "mode": "revoke-prorated",
-  "dry_run": true,
+  "dry_run": false,
   "sample_size": 20,
   "checkpoint_success": "checkpoints/revoke_test_success.txt",
   "checkpoint_failed": "checkpoints/revoke_test_failed.txt",

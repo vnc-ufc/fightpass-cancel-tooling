@@ -14,5 +14,9 @@
 ## 0.2.2 - 2025-12-19
 - Added CLI test workflow instructions in README.
 
+## 0.2.3 - 2025-12-19
+- Added ineligible output CSV for validation.
+- Split success/failed checkpoints and expanded validation outputs/configs.
+
 ## 0.1.0 - 2025-12-08
 - Initial bulk cancellation script with logging and retries.

@@ -79,6 +79,7 @@ Key flags:
 - `--config`: Optional JSON file supplying defaults for any flags.
 - `--timestamp-logs` / `--no-timestamp-logs`: Timestamped log filenames (default on).
 - `--eligible-output`: CSV output path for validation mode (eligible-for-revoke list).
+- `--ineligible-output`: CSV output path for validation mode (ineligible list).
 - `--log-response`: Include full API response payload in validation logs.
 - `--checkpoint`: Track successful tokens so you can resume safely (legacy alias).
 - `--checkpoint-success`: Track successful tokens for resume support.
@@ -116,6 +117,7 @@ You can supply a JSON config and omit most CLI flags. Example: `configs/config.e
   "mode": "cancel",
   "timestamp_logs": true,
   "eligible_output": null,
+  "ineligible_output": null,
   "log_response": false,
   "checkpoint": null,
   "checkpoint_success": "checkpoints/run_success.txt",
@@ -137,6 +139,7 @@ python scripts/cancel_subscriptions.py \
   --config configs/config.json \
   --mode validate \
   --eligible-output outputs/eligible_for_revoke.csv \
+  --ineligible-output outputs/ineligible_for_revoke.csv \
   --log-response \
   --checkpoint-success checkpoints/validate_success.txt \
   --checkpoint-failed checkpoints/validate_failed.txt

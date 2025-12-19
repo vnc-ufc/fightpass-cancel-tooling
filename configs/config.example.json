@@ -18,6 +18,7 @@
   "mode": "cancel",
   "timestamp_logs": true,
   "eligible_output": null,
+  "ineligible_output": null,
   "log_response": false,
   "checkpoint": null,
   "checkpoint_success": "checkpoints/run_success.txt",
