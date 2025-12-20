@@ -78,8 +78,8 @@ Key flags:
 - `--progress` / `--no-progress`: Show or suppress a progress bar (default on).
 - `--config`: Optional JSON file supplying defaults for any flags.
 - `--timestamp-logs` / `--no-timestamp-logs`: Timestamped log filenames (default on).
-- `--eligible-output`: CSV output path for validation mode (eligible-for-revoke list).
-- `--ineligible-output`: CSV output path for validation mode (ineligible list).
+- `--eligible-output`: CSV output path for validation mode (eligible-for-revoke list). A timestamp is appended to the filename and, when `--timestamp-logs` is enabled, the file is placed under `outputs/<timestamp>/`.
+- `--ineligible-output`: CSV output path for validation mode (ineligible list). A timestamp is appended to the filename and, when `--timestamp-logs` is enabled, the file is placed under `outputs/<timestamp>/`.
 - `--log-response`: Include full API response payload in validation logs.
 - `--checkpoint`: Track successful tokens so you can resume safely (legacy alias).
 - `--checkpoint-success`: Track successful tokens for resume support.

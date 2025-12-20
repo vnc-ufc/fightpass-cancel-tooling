@@ -351,15 +351,38 @@ def append_checkpoint(fh, token: str) -> None:
     fh.flush()
 
 
-def build_log_path(mode: str, log_path: Optional[str], timestamp_logs: bool) -> str:
+def build_log_path(
+    mode: str, log_path: Optional[str], timestamp_logs: bool, stamp: Optional[str]
+) -> str:
     """Default log path with optional timestamp."""
     if log_path:
         return log_path
     base = f"{mode}_log"
+    if timestamp_logs and stamp:
+        return os.path.join("logs", stamp, f"{base}_{stamp}.jsonl")
     if timestamp_logs:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        return os.path.join("logs", f"{base}_{stamp}.jsonl")
+        return os.path.join("logs", stamp, f"{base}_{stamp}.jsonl")
     return os.path.join("logs", f"{base}.jsonl")
+
+
+def append_timestamp(path: str, stamp: Optional[str] = None) -> str:
+    """Append UTC timestamp before the file extension."""
+    if not stamp:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    base, ext = os.path.splitext(path)
+    return f"{base}_{stamp}{ext}" if ext else f"{path}_{stamp}"
+
+
+def apply_stamp_dir(path: str, stamp: Optional[str], base_dir: str) -> str:
+    """Place path under base_dir/<stamp>/ when the path starts with base_dir."""
+    if not stamp:
+        return path
+    parts = path.split(os.sep)
+    if parts and parts[0] == base_dir:
+        rest = os.path.join(*parts[1:]) if len(parts) > 1 else os.path.basename(path)
+        return os.path.join(base_dir, stamp, rest)
+    return path
 
 
 def ensure_parent_dir(path: str) -> None:
@@ -508,7 +531,12 @@ def run(args: argparse.Namespace) -> int:
         )
         return 2
 
-    log_path = build_log_path(args.mode, args.log, args.timestamp_logs)
+    run_stamp = (
+        datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        if args.timestamp_logs
+        else None
+    )
+    log_path = build_log_path(args.mode, args.log, args.timestamp_logs, run_stamp)
     ensure_parent_dir(log_path)
     success_checkpoint = args.checkpoint_success or args.checkpoint
     failed_checkpoint = args.checkpoint_failed
@@ -540,10 +568,12 @@ def run(args: argparse.Namespace) -> int:
     if args.mode == "validate":
         eligible_path = args.eligible_output
         if not eligible_path:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             eligible_path = os.path.join(
-                "outputs", f"eligible_for_revoke_{stamp}.csv"
+                "outputs", f"eligible_for_revoke_{run_stamp}.csv"
             )
+        else:
+            eligible_path = append_timestamp(eligible_path, run_stamp)
+        eligible_path = apply_stamp_dir(eligible_path, run_stamp, "outputs")
         ensure_parent_dir(eligible_path)
         eligible_fh = open(eligible_path, "w", newline="")
         eligible_writer = csv.DictWriter(
@@ -563,10 +593,12 @@ def run(args: argparse.Namespace) -> int:
 
         ineligible_path = args.ineligible_output
         if not ineligible_path:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             ineligible_path = os.path.join(
-                "outputs", f"ineligible_for_revoke_{stamp}.csv"
+                "outputs", f"ineligible_for_revoke_{run_stamp}.csv"
             )
+        else:
+            ineligible_path = append_timestamp(ineligible_path, run_stamp)
+        ineligible_path = apply_stamp_dir(ineligible_path, run_stamp, "outputs")
         ensure_parent_dir(ineligible_path)
         ineligible_fh = open(ineligible_path, "w", newline="")
         ineligible_writer = csv.DictWriter(
